@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>مصاريف اللجنة الإعلامية</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #0a0d12; --surface: #111620; --surface2: #1a2130; --border: #1e2d42;
+    --accent: #3b82f6; --accent2: #10b981; --accent3: #f59e0b; --accent4: #ef4444;
+    --text: #e2e8f0; --text2: #94a3b8; --text3: #475569; --gold: #f59e0b; --radius: 12px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'IBM Plex Sans Arabic', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; font-size: 14px; }
+
+  nav { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 24px; display: flex; align-items: center; justify-content: space-between; height: 60px; position: sticky; top: 0; z-index: 100; }
+  .nav-logo { font-size: 16px; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+  .nav-logo-icon { width: 32px; height: 32px; background: linear-gradient(135deg, var(--accent), var(--accent2)); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+  .nav-actions { display: flex; gap: 10px; align-items: center; }
+  .nav-sync { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text2); }
+  .sync-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text3); transition: background 0.3s; }
+  .sync-dot.connected { background: var(--accent2); box-shadow: 0 0 6px var(--accent2); }
+  .sync-dot.syncing { background: var(--gold); animation: pulse 1s infinite; }
+  .sync-dot.error { background: var(--accent4); }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+  .btn { padding: 8px 16px; border-radius: 8px; border: none; cursor: pointer; font-family: inherit; font-size: 13px; font-weight: 500; transition: all 0.2s; }
+  .btn-primary { background: var(--accent); color: white; }
+  .btn-primary:hover { background: #2563eb; }
+  .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-ghost { background: transparent; color: var(--text2); border: 1px solid var(--border); }
+  .btn-ghost:hover { background: var(--surface2); color: var(--text); }
+  .btn-success { background: var(--accent2); color: white; }
+  .btn-success:hover { background: #059669; }
+
+  #quick-add { display: block; }
+  #admin-panel { display: none; }
+  .quick-add-wrapper { min-height: calc(100vh - 60px); display: flex; align-items: center; justify-content: center; padding: 24px; background: radial-gradient(ellipse at 50% 0%,#0d1f3c 0%,var(--bg) 70%); }
+  .quick-form { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 32px; width: 100%; max-width: 480px; box-shadow: 0 32px 64px rgba(0,0,0,0.4); }
+  .quick-form-title { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
+  .quick-form-sub { color: var(--text2); font-size: 13px; margin-bottom: 28px; }
+  .form-group { margin-bottom: 16px; }
+  label { display: block; color: var(--text2); font-size: 12px; font-weight: 500; margin-bottom: 6px; }
+  input, select { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; color: var(--text); font-family: inherit; font-size: 14px; outline: none; transition: border-color 0.2s; -webkit-appearance: none; }
+  input:focus, select:focus { border-color: var(--accent); }
+  input::placeholder { color: var(--text3); }
+  select option { background: var(--surface2); }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+  .toast { padding: 12px 16px; border-radius: 10px; margin-bottom: 16px; display: none; font-weight: 500; font-size: 13px; animation: slideIn 0.3s ease; }
+  .toast-success { background: rgba(16,185,129,0.15); border: 1px solid var(--accent2); color: var(--accent2); }
+  .toast-error   { background: rgba(239,68,68,0.15);  border: 1px solid var(--accent4); color: var(--accent4); }
+  @keyframes slideIn { from{opacity:0;transform:translateY(-8px)} to{opacity:1;transform:translateY(0)} }
+
+  .admin-layout { display: flex; min-height: calc(100vh - 60px); }
+  .sidebar { width: 220px; background: var(--surface); border-left: 1px solid var(--border); padding: 20px 0; flex-shrink: 0; }
+  .sidebar-item { display: flex; align-items: center; gap: 10px; padding: 11px 20px; cursor: pointer; color: var(--text2); font-size: 13px; font-weight: 500; transition: all 0.15s; border-right: 3px solid transparent; }
+  .sidebar-item:hover { background: var(--surface2); color: var(--text); }
+  .sidebar-item.active { background: rgba(59,130,246,0.1); color: var(--accent); border-right-color: var(--accent); }
+  .sidebar-icon { font-size: 16px; width: 20px; text-align: center; }
+  .admin-content { flex: 1; padding: 28px; overflow-x: hidden; }
+  .page-title { font-size: 20px; font-weight: 700; margin-bottom: 24px; display: flex; align-items: center; gap: 10px; }
+
+  .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px,1fr)); gap: 16px; margin-bottom: 28px; }
+  .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; position: relative; overflow: hidden; }
+  .stat-card::before { content:''; position:absolute; top:0; right:0; width:60px; height:60px; border-radius:0 0 0 60px; opacity:0.15; }
+  .stat-card.blue::before{background:var(--accent)} .stat-card.green::before{background:var(--accent2)} .stat-card.gold::before{background:var(--gold)} .stat-card.red::before{background:var(--accent4)}
+  .stat-label { color: var(--text2); font-size: 12px; font-weight: 500; margin-bottom: 8px; }
+  .stat-value { font-size: 26px; font-weight: 700; }
+  .stat-card.blue .stat-value{color:var(--accent)} .stat-card.green .stat-value{color:var(--accent2)} .stat-card.gold .stat-value{color:var(--gold)} .stat-card.red .stat-value{color:var(--accent4)}
+  .stat-unit { font-size: 14px; font-weight: 400; color: var(--text2); margin-right: 4px; }
+
+  .charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 28px; }
+  .chart-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; }
+  .chart-title { font-size: 14px; font-weight: 600; color: var(--text2); margin-bottom: 16px; }
+  .chart-container { position: relative; height: 220px; }
+
+  .table-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .table-header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .table-header-title { font-size: 14px; font-weight: 600; }
+  .table-controls { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .search-input { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 7px 12px; color: var(--text); font-family: inherit; font-size: 13px; width: 180px; outline: none; }
+  .search-input:focus { border-color: var(--accent); }
+  .filter-select { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 7px 12px; color: var(--text); font-family: inherit; font-size: 13px; cursor: pointer; }
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; }
+  th { padding: 10px 14px; text-align: right; background: var(--surface2); color: var(--text2); font-size: 12px; font-weight: 600; white-space: nowrap; border-bottom: 1px solid var(--border); }
+  td { padding: 11px 14px; border-bottom: 1px solid rgba(30,45,66,0.5); color: var(--text); font-size: 13px; white-space: nowrap; }
+  tr:hover td { background: rgba(255,255,255,0.02); }
+  tr:last-child td { border-bottom: none; }
+  .badge { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+  .badge-paid    { background: rgba(16,185,129,0.15); color: var(--accent2); }
+  .badge-pending { background: rgba(245,158,11,0.15); color: var(--gold); }
+  .badge-cat { background: rgba(59,130,246,0.1); color: #93c5fd; font-size: 11px; padding: 2px 8px; border-radius: 6px; }
+  .amount-cell { font-weight: 600; color: var(--accent); direction: ltr; text-align: left; }
+  .table-footer { padding: 12px 20px; border-top: 1px solid var(--border); color: var(--text2); font-size: 12px; display: flex; justify-content: space-between; }
+
+  .spinner { display: inline-block; width: 18px; height: 18px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; margin-right: 8px; }
+  @keyframes spin { to{transform:rotate(360deg)} }
+
+  .login-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: none; align-items: center; justify-content: center; z-index: 200; backdrop-filter: blur(8px); }
+  .login-box { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 36px; width: 360px; box-shadow: 0 40px 80px rgba(0,0,0,0.5); }
+  .login-title { font-size: 20px; font-weight: 700; margin-bottom: 6px; }
+  .login-sub { color: var(--text2); font-size: 13px; margin-bottom: 24px; }
+  .error-msg { background: rgba(239,68,68,0.15); color: var(--accent4); padding: 10px 12px; border-radius: 8px; font-size: 12px; margin-bottom: 12px; display: none; }
+
+  .member-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px,1fr)); gap: 14px; margin-bottom: 24px; }
+  .member-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; }
+  .member-name { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+  .member-amount { font-size: 22px; font-weight: 700; color: var(--accent); direction: ltr; display: block; }
+  .member-count { color: var(--text2); font-size: 12px; margin-top: 4px; }
+
+  .admin-view { display: none; }
+  .admin-view.active { display: block; }
+  .empty { padding: 40px; text-align: center; color: var(--text3); }
+  .no-data { color: var(--text3); font-size: 12px; }
+
+  @media (max-width: 768px) {
+    .charts-grid, .form-row { grid-template-columns: 1fr; }
+    .sidebar { display: none; }
+    .admin-content { padding: 16px; }
+    .stats-grid { grid-template-columns: 1fr 1fr; }
+  }
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-logo">
+    <div class="nav-logo-icon">📋</div>
+    <span>اللجنة الإعلامية</span>
+  </div>
+  <div class="nav-actions">
+    <div class="nav-sync"><div class="sync-dot" id="syncDot"></div><span id="syncText">جاري الاتصال...</span></div>
+    <button class="btn btn-ghost" id="adminLoginBtn" onclick="showLogin()">🔐 لوحة الإدارة</button>
+    <button class="btn btn-ghost" id="adminLogoutBtn" onclick="logout()" style="display:none">خروج</button>
+  </div>
+</nav>
+
+<!-- LOGIN -->
+<div class="login-overlay" id="loginOverlay">
+  <div class="login-box">
+    <div class="login-title">🔐 دخول الأدمن</div>
+    <div class="login-sub">أدخل كلمة المرور للوصول إلى لوحة التحكم</div>
+    <div class="error-msg" id="loginError">كلمة المرور غير صحيحة</div>
+    <div class="form-group">
+      <label>كلمة المرور</label>
+      <input type="password" id="passInput" placeholder="●●●●●●●●" onkeydown="if(event.key==='Enter')doLogin()">
+    </div>
+    <div style="display:flex;gap:10px;margin-top:20px">
+      <button class="btn btn-primary" style="flex:1" onclick="doLogin()">دخول</button>
+      <button class="btn btn-ghost" onclick="closeLogin()">إلغاء</button>
+    </div>
+  </div>
+</div>
+
+<!-- QUICK ADD (public) -->
+<div id="quick-add">
+  <div class="quick-add-wrapper">
+    <div class="quick-form">
+      <div class="quick-form-title">➕ إضافة مصروف</div>
+      <div class="quick-form-sub">أضف مصروفاً جديداً — سيُحفظ مباشرة في Google Sheets</div>
+      <div class="toast toast-success" id="successToast">✅ تم الحفظ في Google Sheets!</div>
+      <div class="toast toast-error"   id="errorToast">❌ خطأ في الحفظ، حاول مرة ثانية</div>
+
+      <div class="form-row">
+        <div class="form-group"><label>التاريخ *</label><input type="date" id="q_date"></div>
+        <div class="form-group"><label>المبلغ (BHD) *</label><input type="number" id="q_amount" step="0.001" min="0" placeholder="0.000"></div>
+      </div>
+      <div class="form-group"><label>جهة الصرف *</label><input type="text" id="q_vendor" placeholder="اسم المحل أو الشركة"></div>
+      <div class="form-group"><label>الوصف</label><input type="text" id="q_description" placeholder="وصف المصروف"></div>
+      <div class="form-row">
+        <div class="form-group"><label>التصنيف</label>
+          <select id="q_category">
+            <option value="">اختر...</option>
+            <option>ديكور - مواليد</option><option>ديكور - وفيات</option>
+            <option>صوتيات</option><option>معدات تصوير</option>
+            <option>إنترنت</option><option>أخرى</option>
+          </select>
+        </div>
+        <div class="form-group"><label>العضو</label>
+          <select id="q_member">
+            <option value="">اختر...</option>
+            <option>محفوظ حسن</option><option>فاضل ناصر</option>
+            <option>خضر ناصر</option><option>جعفر حسن</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>رقم الفاتورة</label><input type="text" id="q_invoice" placeholder="اختياري"></div>
+        <div class="form-group"><label>الحالة</label>
+          <select id="q_status">
+            <option value="مدفوع">مدفوع</option>
+            <option value="غير مدفوع">غير مدفوع</option>
+          </select>
+        </div>
+      </div>
+      <button class="btn btn-primary" id="quickSaveBtn" style="width:100%;padding:12px;font-size:15px;margin-top:8px" onclick="quickAddExpense()">
+        ✅ حفظ المصروف
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ADMIN PANEL -->
+<div id="admin-panel">
+  <div class="admin-layout">
+    <div class="sidebar">
+      <div class="sidebar-item active" onclick="showAdminTab('dashboard',this)"><span class="sidebar-icon">📊</span> الداشبورد</div>
+      <div class="sidebar-item" onclick="showAdminTab('expenses',this)"><span class="sidebar-icon">🧾</span> المصاريف</div>
+      <div class="sidebar-item" onclick="showAdminTab('members',this)"><span class="sidebar-icon">👥</span> الأعضاء</div>
+      <div class="sidebar-item" onclick="showAdminTab('add',this)"><span class="sidebar-icon">➕</span> إضافة مصروف</div>
+    </div>
+
+    <div class="admin-content">
+
+      <!-- DASHBOARD -->
+      <div class="admin-view active" id="view-dashboard">
+        <div class="page-title">📊 الداشبورد
+          <button class="btn btn-ghost" style="font-size:12px;padding:5px 10px" onclick="refreshData()">🔄 تحديث</button>
+        </div>
+        <div class="stats-grid">
+          <div class="stat-card blue"><div class="stat-label">إجمالي المصاريف</div><div class="stat-value" id="s_total">—</div></div>
+          <div class="stat-card green"><div class="stat-label">المدفوع</div><div class="stat-value" id="s_paid">—</div></div>
+          <div class="stat-card gold"><div class="stat-label">عدد المعاملات</div><div class="stat-value" id="s_count">—</div></div>
+          <div class="stat-card red"><div class="stat-label">غير المدفوع</div><div class="stat-value" id="s_pending">—</div></div>
+        </div>
+        <div class="charts-grid">
+          <div class="chart-card"><div class="chart-title">التوزيع حسب التصنيف</div><div class="chart-container"><canvas id="catChart"></canvas></div></div>
+          <div class="chart-card"><div class="chart-title">المصاريف حسب الشهر</div><div class="chart-container"><canvas id="monthChart"></canvas></div></div>
+        </div>
+      </div>
+
+      <!-- EXPENSES -->
+      <div class="admin-view" id="view-expenses">
+        <div class="page-title">🧾 المصاريف
+          <button class="btn btn-ghost" style="font-size:12px;padding:5px 10px" onclick="refreshData()">🔄 تحديث</button>
+        </div>
+        <div class="table-card">
+          <div class="table-header">
+            <div class="table-header-title">جميع المصاريف</div>
+            <div class="table-controls">
+              <input class="search-input" type="text" id="searchInput" placeholder="🔍 بحث..." oninput="filterTable()">
+              <select class="filter-select" id="filterCat" onchange="filterTable()"><option value="">كل التصنيفات</option></select>
+              <select class="filter-select" id="filterMember" onchange="filterTable()"><option value="">كل الأعضاء</option></select>
+              <button class="btn btn-success" onclick="exportCSV()">⬇ CSV</button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr>
+                <th>التاريخ</th><th>جهة الصرف</th><th>الوصف</th><th>التصنيف</th>
+                <th>العضو</th><th>المبلغ</th><th>الحالة</th><th>اللجنة المالية</th><th>الفاتورة</th>
+              </tr></thead>
+              <tbody id="expTable">
+                <tr><td colspan="9" style="text-align:center;padding:40px;color:var(--text2)"><span class="spinner"></span>جاري التحميل...</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="table-footer">
+            <span id="tableFooterCount">—</span>
+            <span id="tableFooterTotal" style="color:var(--accent);font-weight:600">—</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- MEMBERS -->
+      <div class="admin-view" id="view-members">
+        <div class="page-title">👥 الأعضاء</div>
+        <div class="member-grid" id="memberGrid"></div>
+        <div class="table-card">
+          <div class="table-header"><div class="table-header-title">تفصيل الأعضاء</div></div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>العضو</th><th>عدد المعاملات</th><th>إجمالي المدفوع</th><th>أعلى مصروف</th></tr></thead>
+              <tbody id="memberTable"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ADD -->
+      <div class="admin-view" id="view-add">
+        <div class="page-title">➕ إضافة مصروف</div>
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px;max-width:640px">
+          <div class="toast toast-success" id="adminSuccessToast">✅ تم الحفظ في Google Sheets!</div>
+          <div class="toast toast-error"   id="adminErrorToast">❌ حدث خطأ في الحفظ</div>
+          <div class="form-row">
+            <div class="form-group"><label>التاريخ *</label><input type="date" id="a_date"></div>
+            <div class="form-group"><label>المبلغ (BHD) *</label><input type="number" id="a_amount" step="0.001"></div>
+          </div>
+          <div class="form-group"><label>جهة الصرف *</label><input type="text" id="a_vendor"></div>
+          <div class="form-group"><label>الوصف</label><input type="text" id="a_description"></div>
+          <div class="form-row">
+            <div class="form-group"><label>التصنيف</label>
+              <select id="a_category">
+                <option>ديكور - مواليد</option><option>ديكور - وفيات</option>
+                <option>صوتيات</option><option>معدات تصوير</option>
+                <option>إنترنت</option><option>أخرى</option>
+              </select>
+            </div>
+            <div class="form-group"><label>التصنيف الفرعي</label><input type="text" id="a_subcat" placeholder="مثال: طباعة وإعلانات"></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label>العضو</label>
+              <select id="a_member">
+                <option>محفوظ حسن</option><option>فاضل ناصر</option>
+                <option>خضر ناصر</option><option>جعفر حسن</option>
+              </select>
+            </div>
+            <div class="form-group"><label>الحالة</label>
+              <select id="a_status"><option value="مدفوع">مدفوع</option><option value="غير مدفوع">غير مدفوع</option></select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label>رقم الفاتورة</label><input type="text" id="a_invoice"></div>
+            <div class="form-group"><label>اللجنة المالية</label>
+              <select id="a_finance"><option value="سلم إليها">سلم إليها</option><option value="لم يسلم">لم يسلم</option></select>
+            </div>
+          </div>
+          <button class="btn btn-primary" id="adminSaveBtn" style="width:100%;padding:12px;font-size:15px;margin-top:8px" onclick="adminAddExpense()">
+            ✅ حفظ في الشيت
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+// =============================================
+// CONFIG — لا تعدل هنا إلا إذا تغير الرابط
+// =============================================
+const API_URL       = 'https://script.google.com/macros/s/AKfycby41v7x497HX52lu2UqwOZvHijsO153m5mmZ_BqLzo8Qwh0j5gA2-xIrAZ6Amb4q5SI/exec';
+const ADMIN_PASSWORD = 'admin123'; // غيّر كلمة المرور هنا
+
+// =============================================
+// STATE
+// =============================================
+let expenses  = [];
+let isAdmin   = false;
+let catChart, monthChart;
+
+// =============================================
+// SYNC INDICATOR
+// =============================================
+function setSyncStatus(state, text) {
+  document.getElementById('syncDot').className    = 'sync-dot ' + state;
+  document.getElementById('syncText').textContent = text;
+}
+
+// =============================================
+// API
+// =============================================
+async function fetchExpenses() {
+  setSyncStatus('syncing', 'جاري التحميل...');
+  try {
+    const res  = await fetch(API_URL + '?t=' + Date.now());
+    const json = await res.json();
+    if (json.success) { setSyncStatus('connected', 'متصل بالشيت ✓'); return json.data || []; }
+    throw new Error(json.error);
+  } catch(e) {
+    setSyncStatus('error', 'خطأ في الاتصال');
+    console.error(e);
+    return [];
+  }
+}
+
+async function postExpense(exp) {
+  setSyncStatus('syncing', 'جاري الحفظ...');
+  const res  = await fetch(API_URL, { method: 'POST', body: JSON.stringify(exp) });
+  const json = await res.json();
+  if (!json.success) throw new Error(json.error || 'فشل الحفظ');
+  setSyncStatus('connected', 'متصل بالشيت ✓');
+  return json;
+}
+
+// =============================================
+// AUTH
+// =============================================
+function showLogin()  {
+  document.getElementById('loginOverlay').style.display = 'flex';
+  setTimeout(() => document.getElementById('passInput').focus(), 100);
+}
+function closeLogin() {
+  document.getElementById('loginOverlay').style.display = 'none';
+  document.getElementById('passInput').value = '';
+  document.getElementById('loginError').style.display = 'none';
+}
+async function doLogin() {
+  if (document.getElementById('passInput').value !== ADMIN_PASSWORD) {
+    document.getElementById('loginError').style.display = 'block'; return;
+  }
+  isAdmin = true;
+  closeLogin();
+  document.getElementById('quick-add').style.display      = 'none';
+  document.getElementById('admin-panel').style.display    = 'block';
+  document.getElementById('adminLoginBtn').style.display  = 'none';
+  document.getElementById('adminLogoutBtn').style.display = 'block';
+  document.getElementById('a_date').value = today();
+  await refreshData();
+}
+function logout() {
+  isAdmin = false;
+  document.getElementById('quick-add').style.display      = 'block';
+  document.getElementById('admin-panel').style.display    = 'none';
+  document.getElementById('adminLoginBtn').style.display  = 'block';
+  document.getElementById('adminLogoutBtn').style.display = 'none';
+}
+
+// =============================================
+// QUICK ADD
+// =============================================
+async function quickAddExpense() {
+  const date   = document.getElementById('q_date').value;
+  const amount = parseFloat(document.getElementById('q_amount').value);
+  const vendor = document.getElementById('q_vendor').value.trim();
+  if (!date || !amount || !vendor) { alert('يرجى ملء: التاريخ، المبلغ، جهة الصرف'); return; }
+
+  const btn = document.getElementById('quickSaveBtn');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>جاري الحفظ...';
+
+  try {
+    await postExpense({
+      date, amount, vendor,
+      description: document.getElementById('q_description').value,
+      category:    document.getElementById('q_category').value || 'أخرى',
+      subcategory: '',
+      member:      document.getElementById('q_member').value || '',
+      invoice:     document.getElementById('q_invoice').value,
+      status:      document.getElementById('q_status').value,
+      finance_committee: ''
+    });
+    showToast('successToast');
+    ['q_amount','q_vendor','q_description','q_invoice'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('q_date').value = today();
+  } catch(e) {
+    showToast('errorToast');
+  }
+  btn.disabled = false; btn.textContent = '✅ حفظ المصروف';
+}
+
+// =============================================
+// ADMIN ADD
+// =============================================
+async function adminAddExpense() {
+  const date   = document.getElementById('a_date').value;
+  const amount = parseFloat(document.getElementById('a_amount').value);
+  const vendor = document.getElementById('a_vendor').value.trim();
+  if (!date || !amount || !vendor) { alert('يرجى ملء: التاريخ، المبلغ، جهة الصرف'); return; }
+
+  const btn = document.getElementById('adminSaveBtn');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>جاري الحفظ...';
+
+  try {
+    await postExpense({
+      date, amount, vendor,
+      description:       document.getElementById('a_description').value,
+      category:          document.getElementById('a_category').value,
+      subcategory:       document.getElementById('a_subcat').value,
+      member:            document.getElementById('a_member').value,
+      invoice:           document.getElementById('a_invoice').value,
+      status:            document.getElementById('a_status').value,
+      finance_committee: document.getElementById('a_finance').value
+    });
+    showToast('adminSuccessToast');
+    await refreshData();
+    ['a_amount','a_vendor','a_description','a_subcat','a_invoice'].forEach(id => document.getElementById(id).value = '');
+  } catch(e) {
+    showToast('adminErrorToast');
+  }
+  btn.disabled = false; btn.textContent = '✅ حفظ في الشيت';
+}
+
+// =============================================
+// REFRESH & RENDER
+// =============================================
+async function refreshData() {
+  expenses = await fetchExpenses();
+  renderStats();
+  renderCharts();
+  renderExpensesTable(expenses);
+  renderMembersView();
+  populateFilters();
+}
+
+function renderStats() {
+  const total   = expenses.reduce((s,e) => s + (+e.amount||0), 0);
+  const paid    = expenses.filter(e => e.status === 'مدفوع').reduce((s,e) => s + (+e.amount||0), 0);
+  const pending = expenses.filter(e => e.status !== 'مدفوع').reduce((s,e) => s + (+e.amount||0), 0);
+  document.getElementById('s_total').innerHTML   = total.toFixed(3)   + ' <span class="stat-unit">BHD</span>';
+  document.getElementById('s_paid').innerHTML    = paid.toFixed(3)    + ' <span class="stat-unit">BHD</span>';
+  document.getElementById('s_pending').innerHTML = pending.toFixed(3) + ' <span class="stat-unit">BHD</span>';
+  document.getElementById('s_count').textContent = expenses.length;
+}
+
+function renderCharts() {
+  const catT = {};
+  expenses.forEach(e => { if (e.category) catT[e.category] = (catT[e.category]||0) + (+e.amount||0); });
+  const cL = Object.keys(catT), cV = cL.map(k => +catT[k].toFixed(3));
+  const cols = ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4'];
+
+  if (catChart) catChart.destroy();
+  catChart = new Chart(document.getElementById('catChart'), {
+    type: 'doughnut',
+    data: { labels: cL, datasets: [{ data: cV, backgroundColor: cols, borderColor: '#111620', borderWidth: 2 }] },
+    options: { responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: 'bottom', labels: { color: '#94a3b8', font: { family: 'IBM Plex Sans Arabic' }, padding: 12 } } }
+    }
+  });
+
+  const mT = {};
+  expenses.forEach(e => { if (!e.date) return; const m = String(e.date).substring(0,7); mT[m] = (mT[m]||0) + (+e.amount||0); });
+  const mK = Object.keys(mT).sort();
+  const mN = {'2025-06':'يونيو','2025-07':'يوليو','2025-08':'أغسطس','2025-09':'سبتمبر','2025-10':'أكتوبر','2025-11':'نوفمبر','2025-12':'ديسمبر','2026-01':'يناير','2026-02':'فبراير','2026-03':'مارس'};
+
+  if (monthChart) monthChart.destroy();
+  monthChart = new Chart(document.getElementById('monthChart'), {
+    type: 'bar',
+    data: { labels: mK.map(k => mN[k]||k), datasets: [{ label: 'BHD', data: mK.map(k => +mT[k].toFixed(3)), backgroundColor: '#3b82f6', borderRadius: 6 }] },
+    options: { responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: '#94a3b8', font: { family: 'IBM Plex Sans Arabic' } }, grid: { color: '#1e2d42' } },
+        y: { ticks: { color: '#94a3b8' }, grid: { color: '#1e2d42' } }
+      }
+    }
+  });
+}
+
+function renderExpensesTable(data) {
+  const t = document.getElementById('expTable');
+  if (!data.length) { t.innerHTML = '<tr><td colspan="9" class="empty">لا توجد بيانات</td></tr>'; return; }
+  t.innerHTML = data.map(e => `<tr>
+    <td>${e.date||'—'}</td>
+    <td>${e.vendor||'—'}</td>
+    <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis">${e.description||'—'}</td>
+    <td><span class="badge-cat">${e.category||'—'}</span></td>
+    <td>${e.member||'—'}</td>
+    <td class="amount-cell">${(+(e.amount||0)).toFixed(3)}</td>
+    <td><span class="badge ${e.status==='مدفوع'?'badge-paid':'badge-pending'}">${e.status||'—'}</span></td>
+    <td style="color:${e.finance_committee==='سلم إليها'?'var(--accent2)':'var(--text2)'}">${e.finance_committee||'—'}</td>
+    <td class="no-data">${e.invoice||'—'}</td>
+  </tr>`).join('');
+  const total = data.reduce((s,e) => s + (+(e.amount||0)), 0);
+  document.getElementById('tableFooterCount').textContent = data.length + ' معاملة';
+  document.getElementById('tableFooterTotal').textContent = 'الإجمالي: ' + total.toFixed(3) + ' BHD';
+}
+
+function populateFilters() {
+  const cats = [...new Set(expenses.map(e => e.category).filter(Boolean))];
+  const mems = [...new Set(expenses.map(e => e.member).filter(Boolean))];
+  document.getElementById('filterCat').innerHTML    = '<option value="">كل التصنيفات</option>' + cats.map(c => `<option>${c}</option>`).join('');
+  document.getElementById('filterMember').innerHTML = '<option value="">كل الأعضاء</option>'    + mems.map(m => `<option>${m}</option>`).join('');
+}
+
+function filterTable() {
+  const q   = document.getElementById('searchInput').value.toLowerCase();
+  const cat = document.getElementById('filterCat').value;
+  const mem = document.getElementById('filterMember').value;
+  renderExpensesTable(expenses.filter(e =>
+    (!q   || JSON.stringify(e).toLowerCase().includes(q)) &&
+    (!cat || e.category === cat) &&
+    (!mem || e.member   === mem)
+  ));
+}
+
+function renderMembersView() {
+  const mems = [...new Set(expenses.map(e => e.member).filter(Boolean))];
+  document.getElementById('memberGrid').innerHTML   = '';
+  document.getElementById('memberTable').innerHTML  = '';
+  mems.forEach(m => {
+    const me    = expenses.filter(e => e.member === m);
+    const total = me.reduce((s,e) => s + (+(e.amount||0)), 0);
+    const max   = me.length ? Math.max(...me.map(e => +(e.amount||0))) : 0;
+    document.getElementById('memberGrid').innerHTML  += `<div class="member-card"><div class="member-name">${m}</div><span class="member-amount">${total.toFixed(3)} BHD</span><div class="member-count">${me.length} معاملة</div></div>`;
+    document.getElementById('memberTable').innerHTML += `<tr><td>${m}</td><td>${me.length}</td><td class="amount-cell">${total.toFixed(3)}</td><td class="amount-cell">${max.toFixed(3)}</td></tr>`;
+  });
+}
+
+// =============================================
+// EXPORT
+// =============================================
+function exportCSV() {
+  const h = ['التاريخ','رقم الفاتورة','جهة الصرف','الوصف','التصنيف الفرعي','التصنيف','العضو','المبلغ (BHD)','الحالة','اللجنة المالية'];
+  let csv = '\uFEFF' + h.join(',') + '\n';
+  csv += expenses.map(e =>
+    [e.date,e.invoice,e.vendor,e.description,e.subcategory,e.category,e.member,e.amount,e.status,e.finance_committee]
+    .map(v => `"${(v||'').toString().replace(/"/g,'""')}"`)
+    .join(',')
+  ).join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
+  a.download = 'مصاريف_اللجنة_الإعلامية.csv';
+  a.click();
+}
+
+// =============================================
+// HELPERS
+// =============================================
+function showAdminTab(tab, el) {
+  document.querySelectorAll('.admin-view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.sidebar-item').forEach(s => s.classList.remove('active'));
+  document.getElementById('view-' + tab).classList.add('active');
+  if (el) el.classList.add('active');
+}
+function showToast(id) {
+  const el = document.getElementById(id);
+  el.style.display = 'block';
+  setTimeout(() => el.style.display = 'none', 3500);
+}
+function today() { return new Date().toISOString().split('T')[0]; }
+
+// INIT
+document.getElementById('q_date').value = today();
+</script>
+</body>
+</html>
