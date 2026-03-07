@@ -719,58 +719,71 @@ function renderCharts() {
     }
   });
 
-  // Month chart — fix: group by YYYY-MM key, display Arabic month names
+  // Month chart
   const mT = {};
-  expenses.forEach(e => {
-    if (!e.date) return;
-    // Normalize date — handle both "2025-09-02" and "2/9/2025" formats
-    const normalized = normalizeDate(e.date);
-    if (!normalized) return;
-    const key = normalized.substring(0, 7); // YYYY-MM
-    mT[key] = (mT[key]||0) + (+e.amount||0);
-  });
-
-  const mK = Object.keys(mT).sort();
   const mN = {
     '01':'يناير','02':'فبراير','03':'مارس','04':'أبريل',
     '05':'مايو','06':'يونيو','07':'يوليو','08':'أغسطس',
     '09':'سبتمبر','10':'أكتوبر','11':'نوفمبر','12':'ديسمبر'
   };
-  const mLabels = mK.map(k => {
-    const [y, m] = k.split('-');
-    return (mN[m] || m) + ' ' + y.substring(2);
+  expenses.forEach(e => {
+    if (!e.date) return;
+    const normalized = normalizeDate(e.date);
+    if (!normalized || normalized.length < 7) return;
+    const key = normalized.substring(0, 7); // YYYY-MM
+    // تحقق أن الـ key صحيح (يبدأ بـ 20)
+    if (!key.match(/^20\d{2}-\d{2}$/)) return;
+    mT[key] = (mT[key]||0) + (+e.amount||0);
   });
+
+  const mK = Object.keys(mT).sort();
+  const mLabels = mK.map(k => {
+    const parts = k.split('-');
+    if (parts.length < 2) return k;
+    const monthNum = parts[1];
+    const yearShort = parts[0].substring(2);
+    return (mN[monthNum] || monthNum) + ' ' + yearShort;
+  });
+  const mValues = mK.map(k => +mT[k].toFixed(3));
 
   if (monthChart) monthChart.destroy();
   monthChart = new Chart(document.getElementById('monthChart'), {
     type: 'bar',
     data: {
       labels: mLabels,
-      datasets: [{ label: 'BHD', data: mK.map(k => +mT[k].toFixed(3)), backgroundColor: '#2563eb', borderRadius: 6 }]
+      datasets: [{ label: 'BHD', data: mValues, backgroundColor: '#2563eb', borderRadius: 6 }]
     },
     options: {
       responsive: true, maintainAspectRatio: false,
       plugins: { legend: { display: false } },
       scales: {
-        x: { ticks: { color: '#64748b', font: { family: 'IBM Plex Sans Arabic', size: 11 } }, grid: { color: '#f1f5f9' } },
-        y: { ticks: { color: '#64748b' }, grid: { color: '#f1f5f9' } }
+        x: {
+          ticks: {
+            color: '#64748b',
+            font: { family: 'IBM Plex Sans Arabic', size: 11 },
+            maxRotation: 45, minRotation: 0
+          },
+          grid: { color: '#f1f5f9' }
+        },
+        y: { ticks: { color: '#64748b' }, grid: { color: '#f1f5f9' }, beginAtZero: true }
       }
     }
   });
 }
 
-// Normalize date string to YYYY-MM-DD
+// Normalize date string to YYYY-MM-DD — no Date() to avoid timezone/weekday issues
 function normalizeDate(d) {
   if (!d) return '';
   const s = String(d).trim();
-  // Already YYYY-MM-DD
-  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.substring(0, 10);
+  // Already YYYY-MM-DD or YYYY-MM-DDT...
+  const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
   // DD/MM/YYYY or D/M/YYYY
-  const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
-  if (m) return `${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;
-  // Try Date parse
-  const dt = new Date(s);
-  if (!isNaN(dt)) return dt.toISOString().substring(0, 10);
+  const dmy = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if (dmy) return `${dmy[3]}-${dmy[2].padStart(2,'0')}-${dmy[1].padStart(2,'0')}`;
+  // MM/DD/YYYY fallback
+  const mdy = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
+  if (mdy) return `${mdy[3].length===2?'20'+mdy[3]:mdy[3]}-${mdy[1].padStart(2,'0')}-${mdy[2].padStart(2,'0')}`;
   return '';
 }
 
