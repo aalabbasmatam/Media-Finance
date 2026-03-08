@@ -1,3 +1,15 @@
+// =============================================
+// ⚙️ CONFIG — عدّل هنا فقط
+// =============================================
+const API_URL        = 'https://script.google.com/macros/s/AKfycby41v7x497HX52lu2UqwOZvHijsO153m5mmZ_BqLzo8Qwh0j5gA2-xIrAZ6Amb4q5SI/exec';
+const ADMIN_PASSWORD = 'admin123';
+// معرف مجلد Google Drive لحفظ صور الفواتير
+// كيفية الحصول عليه: افتح المجلد في Drive ← انسخ الـ ID من الرابط
+// مثال: https://drive.google.com/drive/folders/THIS_IS_THE_ID
+const DRIVE_FOLDER_ID = '1f3zmucdX4XxqAyT9-XzugCeuUzTuDuIE'; // ← ضع ID المجلد هنا
+// ملاحظة: مفتاح Claude API محفوظ بأمان في Code.gs (Apps Script) وليس هنا
+// =============================================
+
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -166,11 +178,36 @@
   .balance-card-value { font-size: 22px; font-weight: 700; color: var(--accent); }
   .balance-card.green-card .balance-card-value { color: var(--accent2); }
 
+  /* BOTTOM NAV for mobile */
+  .bottom-nav {
+    display: none;  /* hidden by default, shown via .admin-active on mobile */
+    position: fixed; bottom: 0; right: 0; left: 0;
+    background: var(--surface); border-top: 1px solid var(--border);
+    z-index: 90; padding: 0;
+    box-shadow: 0 -2px 12px rgba(0,0,0,0.08);
+  }
+  .bottom-nav.admin-active {
+    display: block;  /* JS adds this class after login */
+  }
+  .bottom-nav-items { display: flex; }
+  .bottom-nav-item {
+    flex: 1; display: flex; flex-direction: column; align-items: center;
+    justify-content: center; padding: 10px 4px 8px;
+    cursor: pointer; color: var(--text2); font-size: 10px; font-weight: 500;
+    border: none; background: none; font-family: inherit;
+    transition: color 0.15s; gap: 3px;
+  }
+  .bottom-nav-item .bnav-icon { font-size: 20px; line-height: 1; }
+  .bottom-nav-item.active { color: var(--accent); }
+  .admin-content-mobile { padding-bottom: 70px !important; }
+
   @media (max-width: 768px) {
     .charts-grid, .form-row, .balance-row { grid-template-columns: 1fr; }
-    .sidebar { display: none; }
-    .admin-content { padding: 16px; }
+    .sidebar { display: none !important; }
+    .admin-content { padding: 16px; padding-bottom: 80px; }
     .stats-grid { grid-template-columns: 1fr 1fr; }
+    .bottom-nav.admin-active { display: block; }
+    .search-input { width: 140px; }
   }
   ::-webkit-scrollbar { width: 6px; height: 6px; }
   ::-webkit-scrollbar-track { background: var(--bg); }
@@ -266,6 +303,24 @@
         ✅ حفظ المصروف
       </button>
     </div>
+  </div>
+</div>
+
+<!-- BOTTOM NAV (mobile admin) -->
+<div class="bottom-nav" id="bottomNav">
+  <div class="bottom-nav-items">
+    <button class="bottom-nav-item active" id="bn_dashboard" onclick="showAdminTab('dashboard',this,'bn_dashboard')">
+      <span class="bnav-icon">📊</span><span>الداشبورد</span>
+    </button>
+    <button class="bottom-nav-item" id="bn_expenses" onclick="showAdminTab('expenses',this,'bn_expenses')">
+      <span class="bnav-icon">🧾</span><span>المصاريف</span>
+    </button>
+    <button class="bottom-nav-item" id="bn_members" onclick="showAdminTab('members',this,'bn_members')">
+      <span class="bnav-icon">👥</span><span>الأعضاء</span>
+    </button>
+    <button class="bottom-nav-item" id="bn_add" onclick="showAdminTab('add',this,'bn_add')">
+      <span class="bnav-icon">➕</span><span>إضافة</span>
+    </button>
   </div>
 </div>
 
@@ -520,24 +575,45 @@ function handleOcrFile(input, isAdmin = false) {
   const previewId  = isAdmin ? 'ocrPreviewAdmin'  : 'ocrPreview';
   const scanningId = isAdmin ? 'ocrScanningAdmin' : 'ocrScanning';
 
-  // Show preview
   const reader = new FileReader();
   reader.onload = async (e) => {
-    const base64 = e.target.result;
-    const img    = document.getElementById(previewId);
-    img.src      = base64;
+    // ضغط الصورة قبل الإرسال (صور الموبايل كبيرة جداً)
+    const compressed = await compressImage(e.target.result, 1024, 0.75);
+
+    // عرض المعاينة
+    const img = document.getElementById(previewId);
+    img.src   = compressed;
     img.style.display = 'block';
 
-    // Store for later upload
-    if (isAdmin) currentOcrImageBase64Admin = base64;
-    else         currentOcrImageBase64      = base64;
+    // حفظ للرفع لاحقاً
+    if (isAdmin) currentOcrImageBase64Admin = compressed;
+    else         currentOcrImageBase64      = compressed;
 
-    // Scan with Claude
+    // قراءة بـ Claude
     document.getElementById(scanningId).style.display = 'flex';
-    await scanInvoiceWithClaude(base64, isAdmin);
+    await scanInvoiceWithClaude(compressed, isAdmin);
     document.getElementById(scanningId).style.display = 'none';
   };
   reader.readAsDataURL(file);
+}
+
+// ضغط الصورة لـ maxSize px مع جودة محددة
+function compressImage(dataUrl, maxSize, quality) {
+  return new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => {
+      let w = img.width, h = img.height;
+      if (w > maxSize || h > maxSize) {
+        if (w > h) { h = Math.round(h * maxSize / w); w = maxSize; }
+        else       { w = Math.round(w * maxSize / h); h = maxSize; }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      resolve(canvas.toDataURL('image/jpeg', quality));
+    };
+    img.src = dataUrl;
+  });
 }
 
 async function scanInvoiceWithClaude(base64DataUrl, isAdmin) {
@@ -550,8 +626,10 @@ async function scanInvoiceWithClaude(base64DataUrl, isAdmin) {
       method: 'POST',
       body: JSON.stringify({ action: 'ocr', imageBase64: base64, mediaType })
     });
-    const json = await res.json();
-    if (!json.success) throw new Error(json.error || 'فشل OCR');
+    const rawText = await res.text();
+    let json;
+    try { json = JSON.parse(rawText); } catch(pe) { throw new Error('Apps Script رجّع:\n' + rawText.substring(0,300)); }
+    if (!json.success) throw new Error(json.error || 'فشل OCR — تحقق من مفتاح Claude في Code.gs');
 
     const parsed = json.data;
     const p = isAdmin ? 'a_' : 'q_';
@@ -562,8 +640,8 @@ async function scanInvoiceWithClaude(base64DataUrl, isAdmin) {
     if (parsed.description) document.getElementById(p + 'description').value = parsed.description;
 
   } catch(e) {
-    console.error('OCR error:', e);
-    alert('حدث خطأ أثناء قراءة الفاتورة');
+    console.error('OCR error full:', e);
+    alert('خطأ OCR:\n' + (e.message || JSON.stringify(e)));
   }
 }
 
@@ -589,6 +667,7 @@ async function doLogin() {
   document.getElementById('admin-panel').style.display    = 'block';
   document.getElementById('adminLoginBtn').style.display  = 'none';
   document.getElementById('adminLogoutBtn').style.display = 'block';
+  document.getElementById('bottomNav').classList.add('admin-active');
   document.getElementById('a_date').value = today();
   await refreshData();
 }
@@ -598,6 +677,7 @@ function logout() {
   document.getElementById('admin-panel').style.display    = 'none';
   document.getElementById('adminLoginBtn').style.display  = 'block';
   document.getElementById('adminLogoutBtn').style.display = 'none';
+  document.getElementById('bottomNav').classList.remove('admin-active');
 }
 
 // =============================================
@@ -863,11 +943,16 @@ function exportCSV() {
 // =============================================
 // HELPERS
 // =============================================
-function showAdminTab(tab, el) {
+function showAdminTab(tab, el, bnId) {
   document.querySelectorAll('.admin-view').forEach(v => v.classList.remove('active'));
   document.querySelectorAll('.sidebar-item').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.bottom-nav-item').forEach(s => s.classList.remove('active'));
   document.getElementById('view-' + tab).classList.add('active');
   if (el) el.classList.add('active');
+  // sync bottom nav
+  const bnTarget = bnId || ('bn_' + tab);
+  const bnEl = document.getElementById(bnTarget);
+  if (bnEl) bnEl.classList.add('active');
 }
 function showToast(id) {
   const el = document.getElementById(id);
