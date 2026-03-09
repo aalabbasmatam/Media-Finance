@@ -496,7 +496,7 @@
 
 <script>
 // =============================================
-// ⚙️ CONFIG —  عدّل هنا فقط
+// ⚙️ CONFIG — عدّل هنا فقط
 // =============================================
 const API_URL        = 'https://script.google.com/macros/s/AKfycbxy16Ncl3Rnzo28faBFwB_7ZU0oD5OkIHELVuo9Dxtjz_tih7qp28knj-OP7OAsHzRW/exec';
 const ADMIN_PASSWORD = 'admin123';
@@ -605,21 +605,55 @@ function compressImage(dataUrl, maxSize, quality) {
 }
 
 async function scanInvoiceWithClaude(base64DataUrl, isAdmin) {
-  // المفتاح محفوظ بأمان في Apps Script (Code.gs) — الموقع يرسل الصورة له فقط
+  // OCR مباشر من المتصفح — المفتاح يُحمَّل من config.json على نفس السيرفر
   try {
     const base64    = base64DataUrl.includes(',') ? base64DataUrl.split(',')[1] : base64DataUrl;
     const mediaType = base64DataUrl.split(';')[0].replace('data:','') || 'image/jpeg';
 
-    const res  = await fetch(API_URL, {
-      method: 'POST',
-      body: JSON.stringify({ action: 'ocr', imageBase64: base64, mediaType })
-    });
-    const rawText = await res.text();
-    let json;
-    try { json = JSON.parse(rawText); } catch(pe) { throw new Error('Apps Script رجّع:\n' + rawText.substring(0,300)); }
-    if (!json.success) throw new Error(json.error || 'فشل OCR — تحقق من مفتاح Claude في Code.gs');
+    // حمّل المفتاح من config.json (ملف منفصل على GitHub، لا تضعه في index.html)
+    let apiKey = window._claudeKey;
+    if (!apiKey) {
+      try {
+        const cfgRes = await fetch('./config.json?t=' + Date.now());
+        const cfg    = await cfgRes.json();
+        apiKey       = cfg.claude_api_key;
+        window._claudeKey = apiKey; // cache
+      } catch(ce) {
+        throw new Error('ما قدر يحمّل config.json — تأكد من وجود الملف');
+      }
+    }
+    if (!apiKey || apiKey === 'YOUR_CLAUDE_API_KEY_HERE') {
+      throw new Error('ضع مفتاح Claude في ملف config.json');
+    }
 
-    const parsed = json.data;
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-ipc': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 500,
+        messages: [{
+          role: 'user',
+          content: [
+            { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64 } },
+            { type: 'text', text: 'استخرج من هذه الفاتورة المعلومات التالية وأعدها بصيغة JSON فقط بدون أي نص إضافي:\n{\n  \"vendor\": \"اسم المحل أو الشركة\",\n  \"amount\": 0.000,\n  \"date\": \"YYYY-MM-DD\",\n  \"invoice\": \"رقم الفاتورة إن وجد\",\n  \"description\": \"وصف مختصر\"\n}\nإذا لم تجد قيمة اتركها فارغة أو صفر. التاريخ بصيغة YYYY-MM-DD.' }
+          ]
+        }]
+      })
+    });
+
+    const data = await res.json();
+    if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
+    const text  = data.content?.[0]?.text || '';
+    const match = text.match(/\{[\s\S]*\}/);
+    if (!match) throw new Error('Claude ما رجّع JSON — جرب صورة أوضح');
+    const parsed = JSON.parse(match[0]);
+
     const p = isAdmin ? 'a_' : 'q_';
     if (parsed.vendor)      document.getElementById(p + 'vendor').value      = parsed.vendor;
     if (parsed.amount)      document.getElementById(p + 'amount').value      = parsed.amount;
@@ -628,7 +662,7 @@ async function scanInvoiceWithClaude(base64DataUrl, isAdmin) {
     if (parsed.description) document.getElementById(p + 'description').value = parsed.description;
 
   } catch(e) {
-    console.error('OCR error full:', e);
+    console.error('OCR error:', e);
     alert('خطأ OCR:\n' + (e.message || JSON.stringify(e)));
   }
 }
