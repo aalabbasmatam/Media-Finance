@@ -125,13 +125,14 @@
   .amount-cell { font-weight: 600; color: var(--accent); direction: ltr; text-align: left; }
   .table-footer { padding: 12px 20px; border-top: 1px solid var(--border); color: var(--text2); font-size: 12px; display: flex; justify-content: space-between; background: var(--surface2); }
 
-  /* Image Upload */
+  /* Image Upload + OCR */
   .img-upload-zone { border: 2px dashed var(--border); border-radius: 10px; padding: 16px; text-align: center; cursor: pointer; transition: all 0.2s; margin-bottom: 16px; background: var(--surface2); position: relative; }
   .img-upload-zone:hover { border-color: var(--accent); background: #eff6ff; }
   .img-upload-zone input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
   .img-upload-zone-text { font-size: 13px; color: var(--text2); font-weight: 500; }
   .img-upload-zone-sub  { font-size: 11px; color: var(--text3); margin-top: 3px; }
   .img-preview { max-width: 100%; max-height: 120px; border-radius: 8px; margin-top: 10px; display: none; object-fit: contain; border: 1px solid var(--border); }
+  .ocr-scanning { display: none; align-items: center; gap: 8px; justify-content: center; color: var(--accent); font-size: 13px; font-weight: 500; margin: 8px 0 14px; }
 
   /* SPINNER */
   .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; margin-right: 6px; }
@@ -247,10 +248,13 @@
 
       <div class="img-upload-zone">
         <input type="file" accept="image/*" capture="environment" id="imgInput" onchange="handleImageFile(this, false)">
-        <div style="font-size:24px;margin-bottom:4px">📎</div>
-        <div class="img-upload-zone-text">ارفع صورة الفاتورة (اختياري)</div>
-        <div class="img-upload-zone-sub">ستُحفظ في Google Drive كمرجع</div>
+        <div style="font-size:24px;margin-bottom:4px">📷</div>
+        <div class="img-upload-zone-text">صوّر الفاتورة أو ارفع صورتها</div>
+        <div class="img-upload-zone-sub">سيتم قراءة البيانات تلقائياً + حفظ في Drive</div>
         <img id="imgPreview" class="img-preview">
+      </div>
+      <div class="ocr-scanning" id="ocrScanning">
+        <span class="spinner"></span> جاري قراءة الفاتورة بالذكاء الاصطناعي...
       </div>
 
       <div class="form-row">
@@ -442,10 +446,13 @@
 
           <div class="img-upload-zone">
             <input type="file" accept="image/*" capture="environment" id="imgInputAdmin" onchange="handleImageFile(this, true)">
-            <div style="font-size:24px;margin-bottom:4px">📎</div>
-            <div class="img-upload-zone-text">ارفع صورة الفاتورة (اختياري)</div>
-            <div class="img-upload-zone-sub">ستُحفظ في Google Drive كمرجع</div>
+            <div style="font-size:24px;margin-bottom:4px">📷</div>
+            <div class="img-upload-zone-text">صوّر الفاتورة أو ارفع صورتها</div>
+            <div class="img-upload-zone-sub">سيتم قراءة البيانات تلقائياً + حفظ في Drive</div>
             <img id="imgPreviewAdmin" class="img-preview">
+          </div>
+          <div class="ocr-scanning" id="ocrScanningAdmin">
+            <span class="spinner"></span> جاري قراءة الفاتورة بالذكاء الاصطناعي...
           </div>
 
           <div class="form-row">
@@ -497,6 +504,7 @@
 const API_URL        = 'https://script.google.com/macros/s/AKfycbxy16Ncl3Rnzo28faBFwB_7ZU0oD5OkIHELVuo9Dxtjz_tih7qp28knj-OP7OAsHzRW/exec';
 const ADMIN_PASSWORD = 'admin123';
 const DRIVE_FOLDER_ID = '1f3zmucdX4XxqAyT9-XzugCeuUzTuDuIE'; // ← ضع ID مجلد Drive هنا
+const OCR_WORKER_URL = 'https://claude-ocr.aalabbasmatam.workers.dev';
 
 
 // =============================================
@@ -549,22 +557,78 @@ async function postExpense(exp) {
 }
 
 // =============================================
-// IMAGE UPLOAD (Drive reference only — no OCR)
+// IMAGE UPLOAD + OCR via Cloudflare Worker
 // =============================================
 function handleImageFile(input, isAdmin) {
   const file = input.files[0];
   if (!file) return;
   const reader = new FileReader();
-  reader.onload = (e) => {
-    const base64 = e.target.result;
+  reader.onload = async (e) => {
+    // ضغط الصورة أولاً
+    const compressed = await compressImage(e.target.result, 1024, 0.8);
+
+    // عرض المعاينة
     const previewId = isAdmin ? 'imgPreviewAdmin' : 'imgPreview';
     const img = document.getElementById(previewId);
-    img.src = base64;
+    img.src = compressed;
     img.style.display = 'block';
-    if (isAdmin) currentImageBase64Admin = base64;
-    else         currentImageBase64      = base64;
+
+    // حفظ للرفع
+    if (isAdmin) currentImageBase64Admin = compressed;
+    else         currentImageBase64      = compressed;
+
+    // OCR عبر Cloudflare Worker
+    const scanId = isAdmin ? 'ocrScanningAdmin' : 'ocrScanning';
+    document.getElementById(scanId).style.display = 'flex';
+    await scanWithWorker(compressed, isAdmin);
+    document.getElementById(scanId).style.display = 'none';
   };
   reader.readAsDataURL(file);
+}
+
+function compressImage(dataUrl, maxSize, quality) {
+  return new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => {
+      let w = img.width, h = img.height;
+      if (w > maxSize || h > maxSize) {
+        if (w > h) { h = Math.round(h * maxSize / w); w = maxSize; }
+        else       { w = Math.round(w * maxSize / h); h = maxSize; }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      resolve(canvas.toDataURL('image/jpeg', quality));
+    };
+    img.src = dataUrl;
+  });
+}
+
+async function scanWithWorker(dataUrl, isAdmin) {
+  try {
+    const base64    = dataUrl.split(',')[1];
+    const mediaType = dataUrl.split(';')[0].replace('data:','') || 'image/jpeg';
+
+    const res  = await fetch(OCR_WORKER_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ imageBase64: base64, mediaType })
+    });
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error || 'فشل OCR');
+
+    const p = isAdmin ? 'a_' : 'q_';
+    const d = json.data;
+    if (d.vendor)      document.getElementById(p + 'vendor').value      = d.vendor;
+    if (d.amount)      document.getElementById(p + 'amount').value      = d.amount;
+    if (d.date)        document.getElementById(p + 'date').value        = d.date;
+    if (d.invoice)     document.getElementById(p + 'invoice').value     = d.invoice;
+    if (d.description) document.getElementById(p + 'description').value = d.description;
+
+  } catch(err) {
+    console.error('OCR error:', err);
+    alert('خطأ في قراءة الفاتورة:\n' + err.message);
+  }
 }
 
 // =============================================
