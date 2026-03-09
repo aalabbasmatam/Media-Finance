@@ -73,15 +73,7 @@
   .quick-form-title { font-size: 22px; font-weight: 700; margin-bottom: 6px; color: var(--text); }
   .quick-form-sub { color: var(--text2); font-size: 13px; margin-bottom: 24px; }
 
-  /* OCR Upload */
-  .ocr-zone { border: 2px dashed var(--border); border-radius: 12px; padding: 20px; text-align: center; cursor: pointer; transition: all 0.2s; margin-bottom: 20px; background: var(--surface2); position: relative; }
-  .ocr-zone:hover, .ocr-zone.drag-over { border-color: var(--accent); background: #eff6ff; }
-  .ocr-zone input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
-  .ocr-zone-icon { font-size: 28px; margin-bottom: 8px; }
-  .ocr-zone-text { font-size: 13px; color: var(--text2); font-weight: 500; }
-  .ocr-zone-sub  { font-size: 11px; color: var(--text3); margin-top: 4px; }
-  .ocr-preview { max-width: 100%; max-height: 140px; border-radius: 8px; margin-top: 10px; display: none; object-fit: contain; border: 1px solid var(--border); }
-  .ocr-scanning { display: none; align-items: center; gap: 8px; justify-content: center; color: var(--accent); font-size: 13px; font-weight: 500; margin-top: 10px; }
+
 
   /* ADMIN */
   .admin-layout { display: flex; min-height: calc(100vh - 60px); }
@@ -132,6 +124,14 @@
   .badge-cat { background: #eff6ff; color: #1d4ed8; font-size: 11px; padding: 3px 9px; border-radius: 6px; font-weight: 500; }
   .amount-cell { font-weight: 600; color: var(--accent); direction: ltr; text-align: left; }
   .table-footer { padding: 12px 20px; border-top: 1px solid var(--border); color: var(--text2); font-size: 12px; display: flex; justify-content: space-between; background: var(--surface2); }
+
+  /* Image Upload */
+  .img-upload-zone { border: 2px dashed var(--border); border-radius: 10px; padding: 16px; text-align: center; cursor: pointer; transition: all 0.2s; margin-bottom: 16px; background: var(--surface2); position: relative; }
+  .img-upload-zone:hover { border-color: var(--accent); background: #eff6ff; }
+  .img-upload-zone input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+  .img-upload-zone-text { font-size: 13px; color: var(--text2); font-weight: 500; }
+  .img-upload-zone-sub  { font-size: 11px; color: var(--text3); margin-top: 3px; }
+  .img-preview { max-width: 100%; max-height: 120px; border-radius: 8px; margin-top: 10px; display: none; object-fit: contain; border: 1px solid var(--border); }
 
   /* SPINNER */
   .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; margin-right: 6px; }
@@ -243,16 +243,14 @@
       <div class="toast toast-success" id="successToast">✅ تم الحفظ في Google Sheets!</div>
       <div class="toast toast-error"   id="errorToast">❌ خطأ في الحفظ، حاول مرة ثانية</div>
 
-      <!-- OCR ZONE -->
-      <div class="ocr-zone" id="ocrZone">
-        <input type="file" accept="image/*" capture="environment" id="ocrInput" onchange="handleOcrFile(this)">
-        <div class="ocr-zone-icon">📷</div>
-        <div class="ocr-zone-text">صوّر الفاتورة أو ارفع صورتها</div>
-        <div class="ocr-zone-sub">سيتم قراءة البيانات تلقائياً بالذكاء الاصطناعي</div>
-        <img id="ocrPreview" class="ocr-preview">
-      </div>
-      <div class="ocr-scanning" id="ocrScanning">
-        <span class="spinner"></span> جاري قراءة الفاتورة...
+
+
+      <div class="img-upload-zone">
+        <input type="file" accept="image/*" capture="environment" id="imgInput" onchange="handleImageFile(this, false)">
+        <div style="font-size:24px;margin-bottom:4px">📎</div>
+        <div class="img-upload-zone-text">ارفع صورة الفاتورة (اختياري)</div>
+        <div class="img-upload-zone-sub">ستُحفظ في Google Drive كمرجع</div>
+        <img id="imgPreview" class="img-preview">
       </div>
 
       <div class="form-row">
@@ -440,16 +438,14 @@
           <div class="toast toast-success" id="adminSuccessToast">✅ تم الحفظ في Google Sheets!</div>
           <div class="toast toast-error"   id="adminErrorToast">❌ حدث خطأ في الحفظ</div>
 
-          <!-- OCR ZONE admin -->
-          <div class="ocr-zone" id="ocrZoneAdmin">
-            <input type="file" accept="image/*" capture="environment" id="ocrInputAdmin" onchange="handleOcrFile(this, true)">
-            <div class="ocr-zone-icon">📷</div>
-            <div class="ocr-zone-text">صوّر الفاتورة أو ارفع صورتها</div>
-            <div class="ocr-zone-sub">سيتم قراءة البيانات تلقائياً بالذكاء الاصطناعي</div>
-            <img id="ocrPreviewAdmin" class="ocr-preview">
-          </div>
-          <div class="ocr-scanning" id="ocrScanningAdmin">
-            <span class="spinner"></span> جاري قراءة الفاتورة...
+
+
+          <div class="img-upload-zone">
+            <input type="file" accept="image/*" capture="environment" id="imgInputAdmin" onchange="handleImageFile(this, true)">
+            <div style="font-size:24px;margin-bottom:4px">📎</div>
+            <div class="img-upload-zone-text">ارفع صورة الفاتورة (اختياري)</div>
+            <div class="img-upload-zone-sub">ستُحفظ في Google Drive كمرجع</div>
+            <img id="imgPreviewAdmin" class="img-preview">
           </div>
 
           <div class="form-row">
@@ -500,19 +496,18 @@
 // =============================================
 const API_URL        = 'https://script.google.com/macros/s/AKfycbxy16Ncl3Rnzo28faBFwB_7ZU0oD5OkIHELVuo9Dxtjz_tih7qp28knj-OP7OAsHzRW/exec';
 const ADMIN_PASSWORD = 'admin123';
-// معرف مجلد Google Drive لحفظ صور الفواتير
-// كيفية الحصول عليه: افتح المجلد في Drive ← انسخ الـ ID من الرابط
-// مثال: https://drive.google.com/drive/folders/THIS_IS_THE_ID
-const DRIVE_FOLDER_ID = '1f3zmucdX4XxqAyT9-XzugCeuUzTuDuIE'; // ← ضع ID المجلد هنا
-// ملاحظة: مفتاح Claude API محفوظ بأمان في Code.gs (Apps Script) وليس هنا
+const DRIVE_FOLDER_ID = '1f3zmucdX4XxqAyT9-XzugCeuUzTuDuIE'; // ← ضع ID مجلد Drive هنا
+
+
 // =============================================
 
 let expenses  = [];
 let balanceData = { received: null, remaining: null };
 let isAdmin   = false;
 let catChart, monthChart;
-let currentOcrImageBase64 = null;
-let currentOcrImageBase64Admin = null;
+let currentImageBase64 = null;
+let currentImageBase64Admin = null;
+
 
 // =============================================
 // SYNC
@@ -554,117 +549,22 @@ async function postExpense(exp) {
 }
 
 // =============================================
-// OCR — Claude AI
+// IMAGE UPLOAD (Drive reference only — no OCR)
 // =============================================
-function handleOcrFile(input, isAdmin = false) {
+function handleImageFile(input, isAdmin) {
   const file = input.files[0];
   if (!file) return;
-
-  const previewId  = isAdmin ? 'ocrPreviewAdmin'  : 'ocrPreview';
-  const scanningId = isAdmin ? 'ocrScanningAdmin' : 'ocrScanning';
-
   const reader = new FileReader();
-  reader.onload = async (e) => {
-    // ضغط الصورة قبل الإرسال (صور الموبايل كبيرة جداً)
-    const compressed = await compressImage(e.target.result, 1024, 0.75);
-
-    // عرض المعاينة
+  reader.onload = (e) => {
+    const base64 = e.target.result;
+    const previewId = isAdmin ? 'imgPreviewAdmin' : 'imgPreview';
     const img = document.getElementById(previewId);
-    img.src   = compressed;
+    img.src = base64;
     img.style.display = 'block';
-
-    // حفظ للرفع لاحقاً
-    if (isAdmin) currentOcrImageBase64Admin = compressed;
-    else         currentOcrImageBase64      = compressed;
-
-    // قراءة بـ Claude
-    document.getElementById(scanningId).style.display = 'flex';
-    await scanInvoiceWithClaude(compressed, isAdmin);
-    document.getElementById(scanningId).style.display = 'none';
+    if (isAdmin) currentImageBase64Admin = base64;
+    else         currentImageBase64      = base64;
   };
   reader.readAsDataURL(file);
-}
-
-// ضغط الصورة لـ maxSize px مع جودة محددة
-function compressImage(dataUrl, maxSize, quality) {
-  return new Promise(resolve => {
-    const img = new Image();
-    img.onload = () => {
-      let w = img.width, h = img.height;
-      if (w > maxSize || h > maxSize) {
-        if (w > h) { h = Math.round(h * maxSize / w); w = maxSize; }
-        else       { w = Math.round(w * maxSize / h); h = maxSize; }
-      }
-      const canvas = document.createElement('canvas');
-      canvas.width = w; canvas.height = h;
-      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-      resolve(canvas.toDataURL('image/jpeg', quality));
-    };
-    img.src = dataUrl;
-  });
-}
-
-async function scanInvoiceWithClaude(base64DataUrl, isAdmin) {
-  // OCR مباشر من المتصفح — المفتاح يُحمَّل من config.json على نفس السيرفر
-  try {
-    const base64    = base64DataUrl.includes(',') ? base64DataUrl.split(',')[1] : base64DataUrl;
-    const mediaType = base64DataUrl.split(';')[0].replace('data:','') || 'image/jpeg';
-
-    // حمّل المفتاح من config.json (ملف منفصل على GitHub، لا تضعه في index.html)
-    let apiKey = window._claudeKey;
-    if (!apiKey) {
-      try {
-        const cfgRes = await fetch('./config.json?t=' + Date.now());
-        const cfg    = await cfgRes.json();
-        apiKey       = cfg.claude_api_key;
-        window._claudeKey = apiKey; // cache
-      } catch(ce) {
-        throw new Error('ما قدر يحمّل config.json — تأكد من وجود الملف');
-      }
-    }
-    if (!apiKey || apiKey === 'YOUR_CLAUDE_API_KEY_HERE') {
-      throw new Error('ضع مفتاح Claude في ملف config.json');
-    }
-
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-ipc': 'true'
-      },
-      body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 500,
-        messages: [{
-          role: 'user',
-          content: [
-            { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64 } },
-            { type: 'text', text: 'استخرج من هذه الفاتورة المعلومات التالية وأعدها بصيغة JSON فقط بدون أي نص إضافي:\n{\n  \"vendor\": \"اسم المحل أو الشركة\",\n  \"amount\": 0.000,\n  \"date\": \"YYYY-MM-DD\",\n  \"invoice\": \"رقم الفاتورة إن وجد\",\n  \"description\": \"وصف مختصر\"\n}\nإذا لم تجد قيمة اتركها فارغة أو صفر. التاريخ بصيغة YYYY-MM-DD.' }
-          ]
-        }]
-      })
-    });
-
-    const data = await res.json();
-    if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
-    const text  = data.content?.[0]?.text || '';
-    const match = text.match(/\{[\s\S]*\}/);
-    if (!match) throw new Error('Claude ما رجّع JSON — جرب صورة أوضح');
-    const parsed = JSON.parse(match[0]);
-
-    const p = isAdmin ? 'a_' : 'q_';
-    if (parsed.vendor)      document.getElementById(p + 'vendor').value      = parsed.vendor;
-    if (parsed.amount)      document.getElementById(p + 'amount').value      = parsed.amount;
-    if (parsed.date)        document.getElementById(p + 'date').value        = parsed.date;
-    if (parsed.invoice)     document.getElementById(p + 'invoice').value     = parsed.invoice;
-    if (parsed.description) document.getElementById(p + 'description').value = parsed.description;
-
-  } catch(e) {
-    console.error('OCR error:', e);
-    alert('خطأ OCR:\n' + (e.message || JSON.stringify(e)));
-  }
 }
 
 // =============================================
@@ -724,15 +624,16 @@ async function quickAddExpense() {
       invoice:      document.getElementById('q_invoice').value,
       status:       document.getElementById('q_status').value,
       finance_committee: '',
-      imageBase64:  currentOcrImageBase64 || '',
-      driveFolderId: DRIVE_FOLDER_ID !== 'YOUR_DRIVE_FOLDER_ID_HERE' ? DRIVE_FOLDER_ID : ''
+      imageBase64:  currentImageBase64 || '',
+      driveFolderId: DRIVE_FOLDER_ID !== 'YOUR_DRIVE_FOLDER_ID_HERE' ? DRIVE_FOLDER_ID : '',
+
     };
     await postExpense(payload);
     showToast('successToast');
     ['q_amount','q_vendor','q_description','q_invoice'].forEach(id => document.getElementById(id).value = '');
     document.getElementById('q_date').value = today();
-    document.getElementById('ocrPreview').style.display = 'none';
-    currentOcrImageBase64 = null;
+    document.getElementById('imgPreview').style.display = 'none';
+    currentImageBase64 = null;
   } catch(e) { showToast('errorToast'); }
   btn.disabled = false; btn.textContent = '✅ حفظ المصروف';
 }
@@ -759,15 +660,16 @@ async function adminAddExpense() {
       invoice:           document.getElementById('a_invoice').value,
       status:            document.getElementById('a_status').value,
       finance_committee: document.getElementById('a_finance').value,
-      imageBase64:       currentOcrImageBase64Admin || '',
-      driveFolderId:     DRIVE_FOLDER_ID !== 'YOUR_DRIVE_FOLDER_ID_HERE' ? DRIVE_FOLDER_ID : ''
+      imageBase64:       currentImageBase64Admin || '',
+      driveFolderId:     DRIVE_FOLDER_ID !== 'YOUR_DRIVE_FOLDER_ID_HERE' ? DRIVE_FOLDER_ID : '',
+
     };
     await postExpense(payload);
     showToast('adminSuccessToast');
     await refreshData();
     ['a_amount','a_vendor','a_description','a_subcat','a_invoice'].forEach(id => document.getElementById(id).value = '');
-    document.getElementById('ocrPreviewAdmin').style.display = 'none';
-    currentOcrImageBase64Admin = null;
+    document.getElementById('imgPreviewAdmin').style.display = 'none';
+    currentImageBase64Admin = null;
   } catch(e) { showToast('adminErrorToast'); }
   btn.disabled = false; btn.textContent = '✅ حفظ في الشيت';
 }
