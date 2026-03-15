@@ -475,6 +475,8 @@
               <select id="a_member">
                 <option>محفوظ حسن</option><option>فاضل ناصر</option>
                 <option>خضر ناصر</option><option>جعفر حسن</option>
+                <option>عمار العم</option><option>محمد أحمد سلمان</option>
+                <option>حسن عبدالله</option><option>محمد عزيز</option>
               </select>
             </div>
             <div class="form-group"><label>الحالة</label>
@@ -725,7 +727,7 @@ async function adminAddExpense() {
       status:            document.getElementById('a_status').value,
       finance_committee: document.getElementById('a_finance').value,
       imageBase64:       currentImageBase64Admin || '',
-      driveFolderId:     DRIVE_FOLDER_ID !== 'YOUR_DRIVE_FOLDER_ID_HERE' ? DRIVE_FOLDER_ID : '',
+      driveFolderId:     DRIVE_FOLDER_ID !== '1f3zmucdX4XxqAyT9-XzugCeuUzTuDuIE' ? DRIVE_FOLDER_ID : '',
 
     };
     await postExpense(payload);
