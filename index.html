@@ -287,7 +287,6 @@
             <option>خضر ناصر</option><option>جعفر حسن</option>
             <option>عمار العم</option><option>محمد أحمد سلمان</option>
             <option>حسن عبدالله</option><option>محمد عزيز</option>
-
           </select>
         </div>
       </div>
@@ -414,6 +413,16 @@
               <input class="search-input" type="text" id="searchInput" placeholder="🔍 بحث..." oninput="filterTable()">
               <select class="filter-select" id="filterCat"    onchange="filterTable()"><option value="">كل التصنيفات</option></select>
               <select class="filter-select" id="filterMember" onchange="filterTable()"><option value="">كل الأعضاء</option></select>
+              <select class="filter-select" id="filterStatus" onchange="filterTable()">
+                <option value="">كل الحالات</option>
+                <option value="مدفوع">مدفوع</option>
+                <option value="غير مدفوع">غير مدفوع</option>
+              </select>
+              <select class="filter-select" id="filterFinance" onchange="filterTable()">
+                <option value="">اللجنة المالية - الكل</option>
+                <option value="سلم إليها">سلم إليها</option>
+                <option value="لم يسلم">لم يسلم</option>
+              </select>
               <button class="btn btn-success" onclick="exportCSV()">⬇ CSV</button>
             </div>
           </div>
@@ -548,7 +557,7 @@
 // =============================================
 // ⚙️ CONFIG — عدّل هنا فقط
 // =============================================
-const API_URL        = 'https://script.google.com/macros/s/AKfycbxy16Ncl3Rnzo28faBFwB_7ZU0oD5OkIHELVuo9Dxtjz_tih7qp28knj-OP7OAsHzRW/exec';
+const API_URL        = 'https://script.google.com/macros/s/AKfycby41v7x497HX52lu2UqwOZvHijsO153m5mmZ_BqLzo8Qwh0j5gA2-xIrAZ6Amb4q5SI/exec';
 const ADMIN_PASSWORD = 'admin123';
 const DRIVE_FOLDER_ID = '1f3zmucdX4XxqAyT9-XzugCeuUzTuDuIE'; // ← ضع ID مجلد Drive هنا
 const OCR_WORKER_URL = 'https://claude-ocr.aalabbasmatam.workers.dev';
@@ -943,13 +952,17 @@ function populateFilters() {
 }
 
 function filterTable() {
-  const q   = document.getElementById('searchInput').value.toLowerCase();
-  const cat = document.getElementById('filterCat').value;
-  const mem = document.getElementById('filterMember').value;
+  const q       = document.getElementById('searchInput').value.toLowerCase();
+  const cat     = document.getElementById('filterCat').value;
+  const mem     = document.getElementById('filterMember').value;
+  const status  = document.getElementById('filterStatus').value;
+  const finance = document.getElementById('filterFinance').value;
   renderExpensesTable(expenses.filter(e =>
-    (!q   || JSON.stringify(e).toLowerCase().includes(q)) &&
-    (!cat || e.category === cat) &&
-    (!mem || e.member   === mem)
+    (!q       || JSON.stringify(e).toLowerCase().includes(q)) &&
+    (!cat     || e.category          === cat) &&
+    (!mem     || e.member            === mem) &&
+    (!status  || e.status            === status) &&
+    (!finance || e.finance_committee === finance)
   ));
 }
 
