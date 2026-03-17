@@ -287,7 +287,6 @@
             <option>خضر ناصر</option><option>جعفر حسن</option>
             <option>عمار العم</option><option>محمد أحمد سلمان</option>
             <option>حسن عبدالله</option><option>محمد عزيز</option>
-
           </select>
         </div>
       </div>
@@ -424,12 +423,15 @@
                 <option value="سلم إليها">سلم إليها</option>
                 <option value="لم يسلم">لم يسلم</option>
               </select>
+              <button class="btn btn-ghost" style="font-size:12px" onclick="selectAllUnsent()">☑ تحديد الغير مسلمة</button>
+              <button class="btn btn-primary" style="font-size:12px;background:#7c3aed" onclick="printForm()" id="printBtn">🖨 طباعة استمارة <span id="selectedCount"></span></button>
               <button class="btn btn-success" onclick="exportCSV()">⬇ CSV</button>
             </div>
           </div>
           <div class="table-wrap">
             <table>
               <thead><tr>
+                <th style="width:36px"><input type="checkbox" id="selectAll" onchange="toggleSelectAll(this)" title="تحديد الكل"></th>
                 <th>التاريخ</th><th>جهة الصرف</th><th>الوصف</th><th>التصنيف</th>
                 <th>العضو</th><th>المبلغ</th><th>الحالة</th><th>اللجنة المالية</th><th>الفاتورة</th>
               </tr></thead>
@@ -933,13 +935,18 @@ function formatDate(d) {
   return `${day}/${m}/${y}`;
 }
 
+// store filtered data for checkbox reference
+let filteredExpenses = [];
+
 function renderExpensesTable(data) {
+  filteredExpenses = data;
   const t = document.getElementById('expTable');
-  if (!data.length) { t.innerHTML = '<tr><td colspan="9" class="empty">لا توجد بيانات</td></tr>'; return; }
-  t.innerHTML = data.map(e => `<tr>
+  if (!data.length) { t.innerHTML = '<tr><td colspan="10" class="empty">لا توجد بيانات</td></tr>'; updateSelectedCount(); return; }
+  t.innerHTML = data.map((e, i) => `<tr>
+    <td><input type="checkbox" class="row-check" data-idx="${i}" onchange="updateSelectedCount()"></td>
     <td>${formatDate(e.date)}</td>
     <td>${e.vendor||'—'}</td>
-    <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis">${e.description||'—'}</td>
+    <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis">${e.description||'—'}</td>
     <td><span class="badge-cat">${e.category||'—'}</span></td>
     <td>${e.member||'—'}</td>
     <td class="amount-cell">${(+(e.amount||0)).toFixed(3)}</td>
@@ -950,6 +957,35 @@ function renderExpensesTable(data) {
   const total = data.reduce((s,e) => s + (+(e.amount||0)), 0);
   document.getElementById('tableFooterCount').textContent = data.length + ' معاملة';
   document.getElementById('tableFooterTotal').textContent = 'الإجمالي: ' + total.toFixed(3) + ' BHD';
+  updateSelectedCount();
+}
+
+function toggleSelectAll(cb) {
+  document.querySelectorAll('.row-check').forEach(c => c.checked = cb.checked);
+  updateSelectedCount();
+}
+
+function selectAllUnsent() {
+  document.querySelectorAll('.row-check').forEach((cb, i) => {
+    const e = filteredExpenses[i];
+    cb.checked = e && (!e.finance_committee || e.finance_committee === 'لم يسلم');
+  });
+  updateSelectedCount();
+}
+
+function updateSelectedCount() {
+  const n = document.querySelectorAll('.row-check:checked').length;
+  const el = document.getElementById('selectedCount');
+  if (el) el.textContent = n > 0 ? `(${n})` : '';
+}
+
+function getSelectedExpenses() {
+  const selected = [];
+  document.querySelectorAll('.row-check:checked').forEach(cb => {
+    const idx = parseInt(cb.dataset.idx);
+    if (filteredExpenses[idx]) selected.push(filteredExpenses[idx]);
+  });
+  return selected;
 }
 
 function populateFilters() {
@@ -1039,6 +1075,160 @@ function exportCSV() {
 // HELPERS
 // =============================================
 // =============================================
+// PRINT FORM — استمارة طلب صرف مالي
+// =============================================
+function numberToArabicWords(num) {
+  // تحويل بسيط للأرقام الشائعة — يكفي للاستمارة
+  const ones = ['','واحد','اثنان','ثلاثة','أربعة','خمسة','ستة','سبعة','ثمانية','تسعة','عشرة',
+    'أحد عشر','اثنا عشر','ثلاثة عشر','أربعة عشر','خمسة عشر','ستة عشر','سبعة عشر','ثمانية عشر','تسعة عشر'];
+  const tens = ['','','عشرون','ثلاثون','أربعون','خمسون','ستون','سبعون','ثمانون','تسعون'];
+  if (!num || isNaN(num)) return '—';
+  const n = Math.round(+num * 1000) / 1000;
+  const dinars = Math.floor(n);
+  const fils   = Math.round((n - dinars) * 1000);
+  let text = '';
+  if (dinars > 0) {
+    if (dinars < 20) text += ones[dinars];
+    else { const t = Math.floor(dinars/10); const o = dinars%10; text += (o ? ones[o] + ' و' : '') + tens[t]; }
+    text += ' دينار';
+  }
+  if (fils > 0) {
+    if (text) text += ' و';
+    if (fils < 20) text += ones[fils];
+    else { const t = Math.floor(fils/10); const o = fils%10; text += (o ? ones[o] + ' و' : '') + tens[t]; }
+    text += ' فلس';
+  }
+  return text || 'صفر';
+}
+
+function printForm() {
+  const selected = getSelectedExpenses();
+  if (!selected.length) { alert('اختر مصروفاً واحداً على الأقل'); return; }
+  if (selected.length > 10) { alert('الاستمارة تقبل 10 مصاريف كحد أقصى\nالمحدد: ' + selected.length); return; }
+
+  const total = selected.reduce((s,e) => s + (+(e.amount||0)), 0);
+  const today_str = new Date().toLocaleDateString('ar-BH');
+
+  // بناء صفوف الجدول (دائماً 10 صفوف)
+  let rows = '';
+  for (let i = 0; i < 10; i++) {
+    const e = selected[i];
+    if (e) {
+      const din = Math.floor(+(e.amount||0));
+      const fil = Math.round(((+(e.amount||0)) - din) * 1000);
+      rows += `<tr>
+        <td style="text-align:center;font-weight:600">${i+1}</td>
+        <td style="text-align:right;padding:4px 8px">${e.description || e.vendor || ''}</td>
+        <td style="text-align:center">1</td>
+        <td style="text-align:center;direction:ltr">${fil > 0 ? String(fil).padStart(3,'0') : '—'}</td>
+        <td style="text-align:center;font-weight:600">${din > 0 ? din : (+(e.amount||0)).toFixed(3)}</td>
+      </tr>`;
+    } else {
+      rows += `<tr><td style="text-align:center;color:#ccc">${i+1}</td><td></td><td></td><td></td><td></td></tr>`;
+    }
+  }
+
+  const totalDin = Math.floor(total);
+  const totalFil = Math.round((total - totalDin) * 1000);
+
+  const html = `
+  <div dir="rtl" style="font-family:'Amiri','Traditional Arabic',Arial,sans-serif;font-size:13px;color:#000;max-width:680px;margin:0 auto">
+
+    <!-- Header -->
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">
+      <div style="text-align:right">
+        <div style="font-size:20px;font-weight:700">حسينية أولاد الحاج عباس</div>
+        <div style="font-size:11px;color:#555">تأسست 1904 م ـ قرية عالي مملكة البحرين</div>
+      </div>
+      <div style="text-align:center">
+        <div style="font-size:28px;color:#c00">🌙</div>
+      </div>
+    </div>
+
+    <!-- Date -->
+    <div style="text-align:left;margin-bottom:8px;font-size:12px">
+      التاريخ: <span style="border-bottom:1px solid #000;padding:0 40px">${today_str}</span> م
+    </div>
+
+    <!-- Title -->
+    <div style="text-align:center;font-size:18px;font-weight:700;margin:12px 0;border-top:2px solid #000;border-bottom:2px solid #000;padding:6px 0">
+      استمارة طلب صرف مالي
+    </div>
+
+    <!-- From / To -->
+    <div style="margin-bottom:6px;line-height:2">
+      من السيد/ <span style="border-bottom:1px solid #000;display:inline-block;min-width:180px">&nbsp;</span>
+      &nbsp;&nbsp; رئيس لجنة/ <span style="border-bottom:1px solid #000;display:inline-block;min-width:120px">اللجنة الإعلامية</span>
+    </div>
+    <div style="margin-bottom:12px;line-height:2">
+      إلى السيد/ أمين سر مجلس إدارة حسينية أولاد الحاج عباس.
+    </div>
+    <div style="margin-bottom:12px">
+      نرجو منكم التكرم بالإيعاز لمجلس الادارة لصرف مبلغ وقدره
+      <span style="border-bottom:1px solid #000;padding:0 8px;font-weight:700">${total.toFixed(3)}</span>
+      دينار بحريني وذلك حسب التفصيل أدناه:
+    </div>
+
+    <!-- Table -->
+    <table style="width:100%;border-collapse:collapse;margin-bottom:10px">
+      <thead>
+        <tr style="background:#f0f0f0">
+          <th style="border:1px solid #000;padding:5px 8px;text-align:center;width:40px">الرقم</th>
+          <th style="border:1px solid #000;padding:5px 8px;text-align:right">التفاصيل</th>
+          <th style="border:1px solid #000;padding:5px 8px;text-align:center;width:50px">العدد</th>
+          <th style="border:1px solid #000;padding:5px 8px;text-align:center;width:60px">فلس</th>
+          <th style="border:1px solid #000;padding:5px 8px;text-align:center;width:70px">دينار</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rows}
+        <tr style="background:#f9f9f9;font-weight:700">
+          <td colspan="3" style="border:1px solid #000;padding:5px 8px;text-align:center">المجموع</td>
+          <td style="border:1px solid #000;padding:5px 8px;text-align:center">${totalFil > 0 ? String(totalFil).padStart(3,'0') : '—'}</td>
+          <td style="border:1px solid #000;padding:5px 8px;text-align:center">${totalDin}</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- Amount in words -->
+    <div style="border:1px solid #000;padding:6px 10px;margin-bottom:10px">
+      المبلغ بالحروف: <span style="font-weight:600">${numberToArabicWords(total)}</span>
+    </div>
+
+    <!-- Pay to -->
+    <div style="display:flex;gap:16px;align-items:center;margin-bottom:16px;flex-wrap:wrap">
+      <span>يصرف المبلغ باسم/</span>
+      <span style="border-bottom:1px solid #000;flex:1;min-width:140px">&nbsp;</span>
+      <span>☐ شيك &nbsp;&nbsp; ☐ نقدا</span>
+      <span>التوقيع: <span style="border-bottom:1px solid #000;display:inline-block;min-width:100px">&nbsp;</span></span>
+    </div>
+
+    <hr style="border:2px solid #000;margin:12px 0">
+
+    <!-- Board opinion -->
+    <div style="text-align:center;font-weight:700;margin-bottom:8px">رأي مجلس الإدارة</div>
+    <div style="border-bottom:1px dotted #999;margin-bottom:8px;min-height:20px">&nbsp;</div>
+    <div style="border-bottom:1px dotted #999;margin-bottom:8px;min-height:20px">&nbsp;</div>
+    <div style="border-bottom:1px dotted #999;margin-bottom:16px;min-height:20px">&nbsp;</div>
+
+    <!-- Signatures -->
+    <div style="display:flex;justify-content:space-between;margin-top:16px">
+      <div style="text-align:center">
+        <div>أمين السر:</div>
+        <div style="border-bottom:1px solid #000;margin-top:24px;min-width:160px">&nbsp;</div>
+      </div>
+      <div style="text-align:center">
+        <div>توقيع الرئيس / نائب الرئيس:</div>
+        <div style="border-bottom:1px solid #000;margin-top:24px;min-width:160px">&nbsp;</div>
+      </div>
+    </div>
+  </div>`;
+
+  document.getElementById('formContent').innerHTML = html;
+  document.getElementById('printModal').style.display = 'flex';
+}
+
+// =============================================
 // ADD INCOME
 // =============================================
 async function addIncome() {
@@ -1094,5 +1284,28 @@ function today() { return new Date().toISOString().split('T')[0]; }
 // INIT
 document.getElementById('q_date').value = today();
 </script>
+
+<!-- PRINT FORM MODAL -->
+<div id="printModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:300;align-items:center;justify-content:center;padding:16px">
+  <div style="background:white;border-radius:16px;width:100%;max-width:700px;max-height:90vh;overflow-y:auto;box-shadow:0 32px 64px rgba(0,0,0,0.3)">
+    <div style="padding:16px 20px;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center">
+      <span style="font-weight:700;font-size:15px;color:#1e293b">🖨 استمارة طلب صرف مالي</span>
+      <div style="display:flex;gap:8px">
+        <button onclick="window.print()" style="padding:8px 16px;background:#2563eb;color:white;border:none;border-radius:8px;cursor:pointer;font-family:inherit;font-weight:600">طباعة / حفظ PDF</button>
+        <button onclick="document.getElementById('printModal').style.display='none'" style="padding:8px 16px;background:#f1f5f9;color:#64748b;border:none;border-radius:8px;cursor:pointer;font-family:inherit">إغلاق</button>
+      </div>
+    </div>
+    <div id="formContent" style="padding:24px"></div>
+  </div>
+</div>
+
+<style>
+@media print {
+  body > *:not(#printModal) { display: none !important; }
+  #printModal { display: flex !important; position: static !important; background: none !important; padding: 0 !important; }
+  #printModal > div { box-shadow: none !important; max-height: none !important; border-radius: 0 !important; }
+  #printModal > div > div:first-child { display: none !important; }
+}
+</style>
 </body>
 </html>
