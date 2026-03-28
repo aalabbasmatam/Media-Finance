@@ -175,13 +175,6 @@
   .bottom-nav-item .bnav-icon { font-size: 18px; line-height: 1; }
   .bottom-nav-item.active { color: var(--accent); }
 
-  /* Apps Script notice box */
-  .apps-script-notice {
-    background: #fffbeb; border: 1px solid #f59e0b; border-radius: 10px;
-    padding: 14px 16px; margin-bottom: 20px; font-size: 12px; color: #92400e;
-    display: none;
-  }
-  .apps-script-notice.show { display: block; }
 
   @media (max-width: 768px) {
     .charts-grid, .form-row, .balance-row { grid-template-columns: 1fr; }
@@ -457,11 +450,6 @@
           <button class="btn btn-ghost" style="font-size:12px;padding:5px 10px" onclick="refreshData()">🔄 تحديث</button>
         </div>
 
-        <!-- Notice if API doesn't return incomeList -->
-        <div class="apps-script-notice" id="incomeNotice">
-          ⚠️ لعرض تفاصيل المبالغ المستلمة، يجب تحديث الـ Apps Script. راجع التعليمات في الأسفل.
-        </div>
-
         <!-- Stats -->
         <div class="stats-grid" style="margin-bottom:20px">
           <div class="stat-card">
@@ -519,32 +507,7 @@
             <span id="incomeFooterTotal" style="color:var(--accent2);font-weight:600">—</span>
           </div>
         </div>
-          <pre style="background:#1e293b;color:#e2e8f0;border-radius:8px;padding:16px;margin-top:10px;font-size:12px;overflow-x:auto;direction:ltr;text-align:left">// === قراءة المبالغ المستلمة من صفحة Balance ===
-var balanceSheet = ss.getSheetByName('Balance');
-var incomeList = [];
-if (balanceSheet) {
-  var lastRow = balanceSheet.getLastRow();
-  for (var i = 2; i <= lastRow; i++) {
-    var desc   = balanceSheet.getRange(i, 1).getValue();
-    var amount = balanceSheet.getRange(i, 2).getValue();
-    var date   = balanceSheet.getRange(i, 4).getValue();
-    if (desc || amount) {
-      var dateStr = '';
-      if (date instanceof Date) {
-        dateStr = Utilities.formatDate(date, Session.getScriptTimeZone(), 'yyyy-MM-dd');
-      } else if (date) {
-        dateStr = String(date);
-      }
-      incomeList.push({
-        description: String(desc || ''),
-        amount: parseFloat(amount) || 0,
-        date: dateStr
-      });
-    }
-  }
-}
-result.incomeList = incomeList;</pre>
-        </div>
+
       </div>
 
       <!-- ADD (admin) -->
@@ -1030,9 +993,6 @@ function renderCharts() {
 function renderIncomeView() {
   const hasData = incomeList.length > 0;
   
-  // Show notice if no data from API
-  const notice = document.getElementById('incomeNotice');
-  notice.classList.toggle('show', !hasData);
 
   const total  = incomeList.reduce((s,e) => s + (+e.amount||0), 0);
   const count  = incomeList.length;
