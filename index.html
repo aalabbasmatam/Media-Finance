@@ -329,7 +329,7 @@
         <div class="page-title">📊 الداشبورد
           <button class="btn btn-ghost" style="font-size:12px;padding:5px 10px" onclick="refreshData()">🔄 تحديث</button>
         </div>
-        <div class="balance-row">
+        <div class="balance-row" style="grid-template-columns:1fr 1fr 1fr">
           <div class="balance-card green-card">
             <div class="balance-card-icon">💰</div>
             <div>
@@ -337,11 +337,18 @@
               <div class="balance-card-value" id="b_received">— <span style="font-size:13px;font-weight:400;color:var(--text2)">BHD</span></div>
             </div>
           </div>
-          <div class="balance-card">
+          <div class="balance-card" style="background:linear-gradient(135deg,#fef9c3,#fefce8);border-color:#fde047">
+            <div class="balance-card-icon">📊</div>
+            <div>
+              <div class="balance-card-label">الرصيد النظري (المستلم − كل المصاريف)</div>
+              <div class="balance-card-value" id="b_remaining" style="color:#92400e">— <span style="font-size:13px;font-weight:400;color:var(--text2)">BHD</span></div>
+            </div>
+          </div>
+          <div class="balance-card" style="background:linear-gradient(135deg,#eff6ff,#dbeafe);border-color:#93c5fd">
             <div class="balance-card-icon">🏦</div>
             <div>
-              <div class="balance-card-label">الرصيد المتبقي الحالي</div>
-              <div class="balance-card-value" id="b_remaining">— <span style="font-size:13px;font-weight:400;color:var(--text2)">BHD</span></div>
+              <div class="balance-card-label">الرصيد الموجود حالياً في الحساب</div>
+              <div class="balance-card-value" id="b_actual" style="color:var(--accent)">— <span style="font-size:13px;font-weight:400;color:var(--text2)">BHD</span></div>
             </div>
           </div>
         </div>
@@ -694,7 +701,7 @@ const OCR_WORKER_URL  = 'https://claude-ocr.aalabbasmatam.workers.dev';
 
 let expenses    = [];
 let incomeList  = [];   // ← NEW: list of received payments
-let balanceData = { received: null, remaining: null };
+let balanceData = { received: null, remaining: null, actualBalance: null };
 let isAdmin     = false;
 let catChart, monthChart, incomeChart;
 let currentImageBase64 = null;
@@ -721,8 +728,9 @@ async function fetchExpenses() {
     try { json = JSON.parse(text); } catch(pe) { throw new Error('رد غير متوقع'); }
     if (json.success) {
       setSyncStatus('connected', 'متصل بالشيت ✓');
-      balanceData.received  = json.balance?.received  ?? null;
-      balanceData.remaining = json.balance?.remaining ?? null;
+      balanceData.received      = json.balance?.received      ?? null;
+      balanceData.remaining     = json.balance?.remaining     ?? null;
+      balanceData.actualBalance = json.balance?.actualBalance ?? null;
       // Store income list if API returns it
       incomeList = json.incomeList || [];
       return json.data || [];
@@ -801,7 +809,7 @@ async function scanWithWorker(dataUrl, isAdm) {
     if (d.date)        document.getElementById(p + 'date').value        = d.date;
     if (d.invoice)     document.getElementById(p + 'invoice').value     = d.invoice;
     if (d.description) document.getElementById(p + 'description').value = d.description;
-  } catch(err) { console.error('OCR error:', err); alert('خطأ في قراءة الفاتورة:\n' + err.message); }
+  } catch(err) { console.error('OCR error:', err); /* فشل OCR — الحقول تبقى فارغة للإدخال اليدوي */ }
 }
 
 // =============================================
@@ -925,8 +933,18 @@ async function refreshData() {
 // =============================================
 function renderBalance() {
   const fmt = v => v !== null ? (+v).toFixed(3) + ' <span style="font-size:13px;font-weight:400;color:var(--text2)">BHD</span>' : '—';
-  document.getElementById('b_received').innerHTML  = fmt(balanceData.received);
-  document.getElementById('b_remaining').innerHTML = fmt(balanceData.remaining);
+  const fmtBal = (v, elId, color) => {
+    const el = document.getElementById(elId);
+    if (!el) return;
+    if (v === null) { el.innerHTML = '— <span style="font-size:13px;font-weight:400;color:var(--text2)">BHD</span>'; return; }
+    const num = +v;
+    const col = color || (num < 0 ? 'var(--accent4)' : 'var(--accent2)');
+    el.style.color = col;
+    el.innerHTML = num.toFixed(3) + ' <span style="font-size:13px;font-weight:400;color:var(--text2)">BHD</span>';
+  };
+  fmtBal(balanceData.received,      'b_received',  'var(--accent2)');
+  fmtBal(balanceData.remaining,     'b_remaining',  null);
+  fmtBal(balanceData.actualBalance, 'b_actual',     null);
 }
 
 function renderStats() {
@@ -1003,10 +1021,10 @@ function renderIncomeView() {
   document.getElementById('inc_count').textContent = hasData ? count : '—';
   document.getElementById('inc_avg').innerHTML     = hasData ? fmtStat(avg) : '—';
   
-  // Balance from main data
-  const remaining = balanceData.remaining;
-  document.getElementById('inc_balance').innerHTML = remaining !== null
-    ? (+remaining).toFixed(3) + ' <span class="stat-unit">BHD</span>'
+  // Balance from main data — show actual account balance
+  const actualBal = balanceData.actualBalance;
+  document.getElementById('inc_balance').innerHTML = actualBal !== null
+    ? (+actualBal).toFixed(3) + ' <span class="stat-unit">BHD</span>'
     : '—';
 
   // Chart
